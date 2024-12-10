@@ -35,6 +35,11 @@ This Python script is currently empty and can be used for any additional functio
 2. **HTML Files**: These files (`index.html`) should be used as the frontend interface for the respective functionalities.
 3. **Python Script**: The `hmm.py` file can be used for any additional data processing or analysis tasks.
 
+
+# Data Collection
+
+The data collection is protected under IRB and is not included in the repository. There is an ongoing data collection but we have some prelimary results within the report. 
+
 ## Authors
 
 - Adam Sulemanji
