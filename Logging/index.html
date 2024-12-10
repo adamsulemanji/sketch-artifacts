@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #500000;
+      --primary-light: #750000;
+      --primary-lighter: rgba(80, 0, 0, 0.1);
+      --text: #2d3748;
+      --text-light: #4a5568;
+      --background: #f7fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --success: #48bb78;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--background);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: var(--primary);
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 1rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .card-header {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--primary-lighter);
+    }
+
+    /* Emoji Grid Styles */
+    .emoji-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .emoji-select {
+      background: var(--background);
+      border-radius: 1rem;
+      padding: 1rem 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .emoji-select:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .emoji-select .emoji {
+      font-size: 2.5rem;
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+
+    .emoji-select .label {
+      font-size: 0.875rem;
+      color: var(--text-light);
+    }
+
+    .selected {
+      background: var(--primary-lighter);
+      border: 2px solid var(--primary);
+      transform: scale(1.05);
+    }
+
+    /* Form Styles */
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    input[type="text"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      transition: border-color 0.2s ease;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-lighter);
+    }
+
+    /* Select2 Multiple Customization */
+    .select2-container--default .select2-selection--multiple {
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 0.25rem;
+      min-height: 45px;
+      display: flex;
+      align-items: center;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__rendered {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      width: 100%;
+      padding: 0 8px;
+    }
+
+    .select2-container--default .select2-selection--multiple .select2-selection__choice {
+      background-color: var(--primary-lighter);
+      border: 1px solid var(--primary);
+      border-radius: 0.25rem;
+      padding: 0.25rem 0.5rem;
+      margin: 0.25rem;
+      display: inline-flex !important;
+      align-items: center !important;
+      flex-direction: row-reverse !important;
+      gap: 0.25rem;
+      width: auto !important;
+    }
+
+    .select2-container--default .select2-selection__choice__remove {
+      position: relative !important;
+      top: auto !important;
+      right: auto !important;
+      color: var(--primary);
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0 2px;
+      border: none;
+      margin: 0;
+      display: inline-block !important;
+      float: none !important;
+    }
+
+    .select2-container--default .select2-selection__choice__display {
+      display: inline-block !important;
+      padding: 0;
+      margin-left: 4px;
+    }
+
+    .select2-dropdown {
+      border-color: var(--border);
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .select2-search__field {
+      border-radius: 0.25rem !important;
+    }
+
+    .select2-results__option--highlighted[aria-selected] {
+      background-color: var(--primary) !important;
+    }
+
+    /* DateTime Picker Styles */
+    .datetime-picker {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+    }    
+    
+    .datetime-picker input {
+        padding: 0.75rem;
+        padding-right: 2.5rem;
+        cursor: pointer;
+        background: var(--card);
+        height: 42px;  /* Fixed height to ensure consistent alignment */
+    }
+    
+    .datetime-picker:after {
+        content: "📅";
+        position: absolute;
+        right: 1rem;
+        top: 35%;
+        transform: translateY(-50%);
+        font-size: 1.2rem;
+        pointer-events: none;
+    }
+
+    .datetime-picker small {
+        margin-top: 0.25rem;
+    }
+
+    /* Flatpickr Custom Theme */
+    .flatpickr-calendar {
+      background: var(--card);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+    }
+    
+    .flatpickr-day.selected,
+    .flatpickr-day.selected:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    
+    .flatpickr-day:hover {
+      background: var(--primary-lighter);
+    }
+    
+    .flatpickr-months .flatpickr-month {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .flatpickr-current-month .flatpickr-monthDropdown-months {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* Additional Form Element Styles */
+    .checkbox-group {
+      background: var(--background);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    input[type="checkbox"] {
+      width: 1.25rem;
+      height: 1.25rem;
+      margin-right: 0.5rem;
+      cursor: pointer;
+    }
+
+    small {
+      display: block;
+      color: var(--text-light);
+      margin-top: 0.25rem;
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: background-color 0.2s ease;
+    }
+
+    button:hover {
+      background: var(--primary-light);
+    }
+
+    @media (min-width: 768px) {
+      .two-columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+      }
+    }
+
+    /* Hide the clear all button */
+    .select2-container--default .select2-selection--multiple .select2-selection__clear {
+        display: none !important;
+    }
+
+    /* Ensure the selection area takes up the full width */
+    .select2-container--default .select2-selection--multiple .select2-selection__rendered {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        width: 100%;
+        padding: 0 8px;  /* Add some padding */
+    }
+
+    /* Make the search box take remaining space */
+    .select2-container--default .select2-search--inline {
+        flex: 1;
+    }
+
+    .select2-container--default .select2-search--inline .select2-search__field {
+        width: 100% !important;
+        margin: 0;
+    }
+
+    /* Flatpickr Custom Theme - Change month and year arrow buttons color to white */
+    .flatpickr-prev-month,
+    .flatpickr-next-month,
+    .flatpickr-prev-year,
+    .flatpickr-next-year {
+        color: white !important;  /* Change arrow button color to white */
+    }
+
+    /* Ensure the background of the buttons is also styled if needed */
+    .flatpickr-prev-month:hover,
+    .flatpickr-next-month:hover,
+    .flatpickr-prev-year:hover,
+    .flatpickr-next-year:hover {
+        background: rgba(255, 255, 255, 0.2);  /* Optional: Add a hover effect */
+    }
+
+    /* Target the arrow icons specifically */
+    .flatpickr-prev-month:before,
+    .flatpickr-next-month:before,
+    .flatpickr-prev-year:before,
+    .flatpickr-next-year:before {
+        color: white !important;  /* Ensure the icons are white */
+    }
+
+    /* Additional styles to ensure visibility */
+    .flatpickr-prev-month,
+    .flatpickr-next-month,
+    .flatpickr-prev-year,
+    .flatpickr-next-year {
+        border: none;  /* Remove any borders */
+        background: transparent;  /* Ensure background is transparent */
+    }
+
+    /* Ensure the calendar header text is also white */
+    .flatpickr-months .flatpickr-month,
+    .flatpickr-current-month .flatpickr-monthDropdown-months {
+        color: white !important;  /* Change month and year text color to white */
+    }
+
+    .required-field::after {
+      content: " *";
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    /* Add some styling for invalid state */
+    .invalid-field {
+      border-color: #dc2626 !important; /* Red border for invalid fields */
+      background-color: #fee2e2 !important; /* Light red background */
+    }
+
+    /* Add validation message styling */
+    .validation-message {
+      color: #dc2626;
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+      display: none;
+    }
+
+    .validation-message.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+    <div class="container">
+      <h1>How are you feeling?</h1>
+      
+      <div class="card">
+        <div class="card-header required-field">Primary Emotion</div>
+        <div class="emoji-grid">
+          <span class="emoji-select" data-emotion="Happy">
+            <span class="emoji">😊</span>
+            <span class="label">Happy</span>
+          </span>
+          <span class="emoji-select" data-emotion="Sad">
+            <span class="emoji">😢</span>
+            <span class="label">Sad</span>
+          </span>
+          <span class="emoji-select" data-emotion="Angry">
+            <span class="emoji">😠</span>
+            <span class="label">Angry</span>
+          </span>
+          <span class="emoji-select" data-emotion="Fear">
+            <span class="emoji">😨</span>
+            <span class="label">Fear</span>
+          </span>
+          <span class="emoji-select" data-emotion="Disgust">
+            <span class="emoji">🤢</span>
+            <span class="label">Disgust</span>
+          </span>
+          <span class="emoji-select" data-emotion="Surprise">
+            <span class="emoji">😲</span>
+            <span class="label">Surprise</span>
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="secondaryEmotions">Secondary Emotions (Optional)</label>
+          <select id="secondaryEmotions" multiple="multiple" class="select2-multiple">
+            <!-- Will be populated by JavaScript -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="otherEmotions">Other Emotions (Optional)</label>
+          <input type="text" id="otherEmotions" placeholder="Type other emotions, separated by commas">
+        </div>
+
+        <div class="form-group">
+          <label for="eventDetails" class="required-field">What happened?</label>
+          <textarea id="eventDetails" rows="4" required></textarea>
+          <div class="validation-message">Please describe what happened</div>
+        </div>
+
+        <div class="form-group">
+          <label for="eventTime">When did this happen?</label>
+          <div class="datetime-picker">
+            <input type="text" id="eventTime" placeholder="Select date & time">
+            <small>Leave blank to use current time</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">Additional Details</div>
+        
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="taggedWatch">
+            <span>I have also tagged this on my watch</span>
+          </label>
+        </div>
+
+        <div class="form-group">
+          <div class="two-columns">
+            <div>
+              <label>Have any alcoholic drinks?</label>
+              <div class="checkbox-group">
+                <label class="checkbox-label">
+                  <input type="radio" name="alcoholicDrinks" value="Yes">
+                  <span>Yes</span>
+                </label>
+                <label class="checkbox-label">
+                  <input type="radio" name="alcoholicDrinks" value="No">
+                  <span>No</span>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label>Feeling sick or ill?</label>
+              <div class="checkbox-group">
+                <label class="checkbox-label">
+                  <input type="radio" name="feelingSick" value="Yes">
+                  <span>Yes</span>
+                </label>
+                <label class="checkbox-label">
+                  <input type="radio" name="feelingSick" value="No">
+                  <span>No</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Practice meditation/mindfulness?</label>
+            <div class="checkbox-group">
+              <label class="checkbox-label">
+                <input type="radio" name="meditation" value="Yes">
+                <span>Yes</span>
+              </label>
+              <label class="checkbox-label">
+                <input type="radio" name="meditation" value="No">
+                <span>No</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" onclick="submitForm(event)">Log Event</button>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+      let selectedEmotion = '';
+      
+      // Initialize Select2
+      $(document).ready(function() {
+        $('#secondaryEmotions').select2({
+          placeholder: "Select secondary emotions",
+          allowClear: true,
+          width: '100%'
+        });
+
+        // Initialize Flatpickr
+        flatpickr("#eventTime", {
+          enableTime: true,
+          dateFormat: "Y-m-d H:i",
+          defaultDate: new Date(),
+          time_24hr: true
+        });
+      });
+
+      // Secondary emotions mapping
+      const emotionMappings = {
+        "Happy": ["Joy", "Content", "Excited", "Proud", "Optimistic", "Peaceful"],
+        "Sad": ["Lonely", "Disappointed", "Hopeless", "Gloomy", "Hurt", "Depressed"],
+        "Angry": ["Frustrated", "Annoyed", "Irritated", "Furious", "Enraged", "Jealous"],
+        "Fear": ["Anxious", "Scared", "Nervous", "Worried", "Overwhelmed", "Insecure"],
+        "Disgust": ["Disapproval", "Judgmental", "Avoidance", "Aversion", "Withdrawal", "Nauseous"],
+        "Surprise": ["Amazed", "Astonished", "Shocked", "Confused", "Impressed", "Startled"]
+      };
+
+      // Handle emoji selection
+      document.querySelectorAll('.emoji-select').forEach(emoji => {
+        emoji.addEventListener('click', () => {
+          document.querySelectorAll('.emoji-select').forEach(e => e.classList.remove('selected'));
+          emoji.classList.add('selected');
+          selectedEmotion = emoji.dataset.emotion;
+          
+          // Update secondary emotions dropdown
+          const secondarySelect = $('#secondaryEmotions');
+          secondarySelect.empty();
+          
+          emotionMappings[selectedEmotion].forEach(emotion => {
+            secondarySelect.append(new Option(emotion, emotion));
+          });
+          
+          secondarySelect.trigger('change');
+        });
+      });
+
+      // Function to convert any date to GMT/UTC
+      function convertToGMT(date) {
+        // If date is a string, convert it to a Date object
+        if (typeof date === 'string') {
+          date = new Date(date);
+        }
+        return date.toISOString(); // toISOString() automatically converts to UTC
+      }
+
+      function validateForm() {
+        // Check if primary emotion is selected
+        if (!selectedEmotion) {
+          alert('Please select a primary emotion');
+          return false;
+        }
+
+        // Check if event details are filled
+        const eventDetails = document.getElementById('eventDetails').value.trim();
+        if (!eventDetails) {
+          alert('Please describe what happened');
+          return false;
+        }
+
+        return true;
+      }
+
+      function submitForm(event) {
+        event.preventDefault();
+        
+        // First validate the form
+        if (!validateForm()) {
+          return; // Stop submission if validation fails
+        }
+        
+        // If validation passes, proceed with form submission
+        const formData = {
+          primaryEmotion: selectedEmotion,
+          secondaryEmotions: [
+            ...Array.from($('#secondaryEmotions').select2('data')).map(x => x.text),
+            ...document.getElementById('otherEmotions').value.split(',').map(e => e.trim()).filter(e => e)
+          ],
+          eventDetails: document.getElementById('eventDetails').value,
+          eventTime: document.getElementById('eventTime').value || new Date().toISOString(),
+          taggedWatch: document.getElementById('taggedWatch').checked,
+          alcoholicDrinks: document.querySelector('input[name="alcoholicDrinks"]:checked')?.value || '',
+          feelingSick: document.querySelector('input[name="feelingSick"]:checked')?.value || '',
+          meditation: document.querySelector('input[name="meditation"]:checked')?.value || ''
+        };
+
+        // Show loading state
+        const submitButton = event.target;
+        const originalText = submitButton.textContent;
+        submitButton.textContent = 'Logging...';
+        submitButton.disabled = true;
+
+        google.script.run
+          .withSuccessHandler(function() {
+            // Reset form
+            selectedEmotion = '';
+            document.querySelectorAll('.emoji-select').forEach(e => e.classList.remove('selected'));
+            $('#secondaryEmotions').val(null).trigger('change');
+            document.getElementById('otherEmotions').value = '';
+            document.getElementById('eventDetails').value = '';
+            document.getElementById('taggedWatch').checked = false;
+            document.querySelectorAll('input[type="radio"]').forEach(radio => radio.checked = false);
+            
+            // Reset datetime to current
+            const now = new Date();
+            document.getElementById('eventTime')._flatpickr.setDate(now);
+            
+            alert('Event logged successfully!');
+            submitButton.textContent = originalText;
+            submitButton.disabled = false;
+          })
+          .withFailureHandler(function(error) {
+            alert('Error logging event: ' + error);
+            submitButton.textContent = originalText;
+            submitButton.disabled = false;
+          })
+          .logEvent(formData);
+      }
+    </script>
+  </body>
+</html>
