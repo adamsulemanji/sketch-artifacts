@@ -1,260 +1,478 @@
-function doGet() {
-    return HtmlService.createHtmlOutputFromFile('index');
-  }
-  
-  function fetchUserDataInRange(startDate, endDate) {
-    const sheet = SpreadsheetApp.openById('1hKgZM7_Ft_D6JYkCBa7qDD3JypTZt0BDZNYSStrmS7g');
-    const sheetData = sheet.getActiveSheet();
-    const email = Session.getActiveUser().getEmail();
-    const userId = getUserIdByEmail(email);
-  
-    if (!userId) {
-      return { error: 'User ID not found.' };
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #500000;
+      --primary-light: #750000;
+      --primary-lighter: rgba(80, 0, 0, 0.1);
+      --text: #2d3748;
+      --text-light: #4a5568;
+      --background: #f7fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
     }
-  
-    const data = sheetData.getDataRange().getValues();
-    const start = new Date(startDate + "T00:00:00Z");
-    const end = new Date(endDate + "T23:59:59Z");
-  
-    const result = [];
-  
-    data.forEach((row, index) => {
-      // Skip the header row if present
-      if (index === 0) return; 
-      const rowUserId = row[0];
-      const rowTimestamp = row[1];
-      if (!rowUserId || !rowTimestamp) return;
-  
-      const rowDateGMT = new Date(rowTimestamp);
-  
-      if (rowUserId == userId && rowDateGMT >= start && rowDateGMT <= end) {
-        const secondaryEmotions = row[3] ? row[3].split(', ') : [];
-        result.push({
-          date: rowDateGMT.toLocaleDateString('en-US', { timeZone: 'GMT' }),
-          time: rowDateGMT.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'GMT', hour12: false }),
-          primaryEmotion: row[2] || '',
-          secondaryEmotions: secondaryEmotions,
-          eventDetails: row[4] || '',
-          watchTag: row[5] || '',
-          alcohol: row[6] || '',
-          sickness: row[7] || '',
-          mindfulness: row[8] || ''
-        });
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: var(--background);
+      color: var(--text);
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      background-color: var(--primary);
+      color: white;
+      padding: 15px;
+      text-align: center;
+      border-radius: 8px;
+    }
+
+    .date-insights {
+      background-color: var(--primary-lighter);
+      color: var(--primary);
+      padding: 10px;
+      text-align: center;
+      border-radius: 5px;
+      margin: 15px 0;
+      font-weight: bold;
+    }
+
+    button {
+      background-color: var(--primary);
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      margin-top: 10px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: var(--primary-light);
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    canvas {
+      margin-top: 20px;
+      max-height: 400px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      display: block;
+      overflow-x: auto;
+    }
+
+    table, th, td {
+      border: 1px solid var(--border);
+    }
+
+    th, td {
+      text-align: left;
+      padding: 8px;
+    }
+
+    .date-picker {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .date-picker label {
+      flex: 0 0 100px;
+      margin-right: 10px;
+      font-weight: 500;
+    }
+
+    .date-picker input {
+      flex-grow: 1;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      font-family: 'Roboto', sans-serif;
+    }
+
+    form div {
+      display: flex;
+      align-items: center;
+    }
+
+    .table-container {
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Explore Your EQ Journey</h1>
+    <form id="dateForm">
+      <div class="date-picker">
+        <label for="startDate">Start Date:</label>
+        <input type="date" id="startDate" required>
+      </div>
+      <div class="date-picker">
+        <label for="endDate">End Date:</label>
+        <input type="date" id="endDate" required>
+      </div>
+      <button type="submit">View Data</button>
+    </form>
+
+    <div id="dateInsights" class="date-insights"></div>
+
+    <div id="dataSection">
+      <div id="dataTable" class="card">
+        <h2>Emotion Logs</h2>
+        <div class="table-container">
+          <p>No data available yet.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Emotions Overview</h2>
+        <canvas id="emotionChart"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>Emotion Timeline</h2>
+        <canvas id="emotionTimelineChart"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>Mindful Days vs Emotions</h2>
+        <canvas id="mindfulEmotionChart"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>Alcohol Consumption</h2>
+        <p id="alcoholConsumption">Loading...</p>
+      </div>
+
+      <div class="card">
+        <h2>Alcohol vs Emotion</h2>
+        <canvas id="alcoholEmotionChart"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>Next Day Mood Prediction</h2>
+        <p id="nextDayMood">Based on your previous day, your next mood tomorrow will be <span id="predictedMood">Happy</span>.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Set default date range to last 30 days on page load
+    window.onload = function() {
+      const today = new Date();
+      const past30 = new Date();
+      past30.setDate(today.getDate() - 30);
+
+      const startInput = document.getElementById('startDate');
+      const endInput = document.getElementById('endDate');
+
+      startInput.value = past30.toISOString().split('T')[0];
+      endInput.value = today.toISOString().split('T')[0];
+
+      // Fetch and display data by default
+      fetchAndDisplayData(past30, today);
+    };
+
+    document.getElementById('dateForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const start = new Date(document.getElementById('startDate').value);
+      const end = new Date(document.getElementById('endDate').value);
+      fetchAndDisplayData(start, end);
+    });
+
+    function fetchAndDisplayData(startDate, endDate) {
+      const startStr = startDate.toISOString().split('T')[0];
+      const endStr = endDate.toISOString().split('T')[0];
+      const dateInsightsEl = document.getElementById('dateInsights');
+      
+      // Calculate and display number of days
+      const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+      dateInsightsEl.textContent = `Showing insights for ${daysDiff} day${daysDiff !== 1 ? 's' : ''}: ${startStr} to ${endStr}`;
+
+      google.script.run.withSuccessHandler(displayData).fetchUserDataInRange(startStr, endStr);
+      google.script.run.withSuccessHandler(drawCharts).fetchAggregatedData(startStr, endStr);
+      google.script.run.withSuccessHandler(drawMindfulEmotionChart).fetchMindfulEmotionData(startStr, endStr);
+      google.script.run.withSuccessHandler(drawEmotionTimeline).fetchUserDataInRange(startStr, endStr);
+      google.script.run.withSuccessHandler(displayAlcoholConsumption).fetchAggregatedData(startStr, endStr);
+      google.script.run.withSuccessHandler(drawAlcoholEmotionChart).fetchAlcoholEmotionData(startStr, endStr);
+      google.script.run.withSuccessHandler(predictNextDayMood).fetchUserDataInRange(startStr, endStr);
+    }
+
+    function displayData(result) {
+      const tableSection = document.getElementById('dataTable');
+      if (result.error) {
+        tableSection.innerHTML = `<h2>Emotion Logs</h2><p>${result.error}</p>`;
+        return;
       }
-    });
-  
-    result.sort((a, b) => new Date(a.date + ' ' + a.time) - new Date(b.date + ' ' + b.time));
-  
-    return result.length ? result : { error: 'No data found for the specified date range.' };
-  }
-  
-  function fetchMindfulEmotionData(startDate, endDate) {
-    const sheet = SpreadsheetApp.openById('1hKgZM7_Ft_D6JYkCBa7qDD3JypTZt0BDZNYSStrmS7g');
-    const sheetData = sheet.getActiveSheet();
-    const email = Session.getActiveUser().getEmail();
-    const userId = getUserIdByEmail(email);
-  
-    if (!userId) {
-      return { error: 'User ID not found.' };
+
+      let tableHTML = '<h2>Emotion Logs</h2><table><tr><th>Date</th><th>Time</th><th>Primary Emotion</th><th>Secondary Emotions</th><th>Details</th></tr>';
+      result.forEach(row => {
+        const localDate = new Date(row.date + ' ' + row.time + ' GMT');
+        tableHTML += `<tr>
+          <td>${localDate.toLocaleDateString()}</td>
+          <td>${localDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+          <td>${row.primaryEmotion}</td>
+          <td>${row.secondaryEmotions.join(', ')}</td>
+          <td>${row.eventDetails}</td>
+        </tr>`;
+      });
+      tableHTML += '</table>';
+      tableSection.innerHTML = tableHTML;
     }
-  
-    const data = sheetData.getDataRange().getValues();
-    const start = new Date(startDate + "T00:00:00Z");
-    const end = new Date(endDate + "T23:59:59Z");
-  
-    const primaryEmotions = ["Happy", "Sad", "Angry", "Fear", "Disgust", "Surprise"];
-    const mindfulEmotionCount = {};
-  
-    // Initialize counts
-    primaryEmotions.forEach(emotion => {
-      mindfulEmotionCount[emotion] = 0;
-    });
-  
-    const countedDates = new Set();
-  
-    data.forEach((row, index) => {
-      if (index === 0) return; // Skip header
-      const rowUserId = row[0];
-      const rowTimestamp = row[1];
-      const primaryEmotion = row[2];
-      const mindfulness = row[8];
-  
-      if (!rowUserId || !rowTimestamp) return;
-      const rowDate = new Date(rowTimestamp);
-  
-      if (rowUserId == userId && rowDate >= start && rowDate <= end && mindfulness === 'Yes' && primaryEmotions.includes(primaryEmotion)) {
-        const dateKey = `${rowDate.toISOString().split('T')[0]}-${primaryEmotion}`;
-        if (!countedDates.has(dateKey)) {
-          mindfulEmotionCount[primaryEmotion]++;
-          countedDates.add(dateKey);
+
+    function drawCharts(data) {
+      const ctx1 = document.getElementById('emotionChart').getContext('2d');
+      new Chart(ctx1, {
+        type: 'pie',
+        data: {
+          labels: Object.keys(data.emotionCount),
+          datasets: [{
+            data: Object.values(data.emotionCount),
+            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+          }]
         }
-      }
-    });
-  
-    return mindfulEmotionCount;
-  }
-  
-  
-  function fetchAggregatedData(startDate, endDate) {
-    const sheet = SpreadsheetApp.openById('1hKgZM7_Ft_D6JYkCBa7qDD3JypTZt0BDZNYSStrmS7g');
-    const sheetData = sheet.getActiveSheet();
-    const email = Session.getActiveUser().getEmail();
-    const userId = getUserIdByEmail(email);
-  
-    if (!userId) {
-      return { error: 'User ID not found.' };
+      });
     }
-  
-    const data = sheetData.getDataRange().getValues();
-    const start = new Date(startDate + "T00:00:00Z");
-    const end = new Date(endDate + "T23:59:59Z");
-    
-    const emotionCount = {};
-    const mindfulnessDays = { alcohol: 0, mindfulness: 0 };
-    const emotionTrends = [];
-    const dates = [];
-  
-    data.forEach((row, index) => {
-      // Skip the header row if present
-      if (index === 0) return; 
-      const rowUserId = row[0];
-      const rowTimestamp = row[1];
-      if (!rowUserId || !rowTimestamp) return;
-  
-      const rowDateGMT = new Date(rowTimestamp);
-  
-      if (rowUserId == userId && rowDateGMT >= start && rowDateGMT <= end) {
-        const emotion = row[2] || 'Unknown';
-  
-        // Count emotions
-        emotionCount[emotion] = (emotionCount[emotion] || 0) + 1;
-  
-        // Count mindfulness/alcohol days
-        if (row[6] === 'Yes') mindfulnessDays.alcohol++;
-        if (row[8] === 'Yes') mindfulnessDays.mindfulness++;
-  
-        // Trends
-        dates.push(rowTimestamp);
-        emotionTrends.push(emotion);
+
+    function drawMindfulEmotionChart(data) {
+      const ctx = document.getElementById('mindfulEmotionChart').getContext('2d');
+
+      // Clear any previous chart instance if needed
+      if (window.currentMindfulEmotionChart) {
+        window.currentMindfulEmotionChart.destroy();
       }
-    });
-  
-    return { emotionCount, mindfulnessDays, emotionTrends, dates };
-  }
-  
-  
-  function fetchMindfulEmotionData(startDate, endDate) {
-    const sheet = SpreadsheetApp.openById('1hKgZM7_Ft_D6JYkCBa7qDD3JypTZt0BDZNYSStrmS7g');
-    const sheetData = sheet.getActiveSheet();
-    const email = Session.getActiveUser().getEmail();
-    const userId = getUserIdByEmail(email);
-  
-    if (!userId) {
-      return { error: 'User ID not found.' };
-    }
-  
-    const data = sheetData.getDataRange().getValues();
-    const start = new Date(startDate + "T00:00:00Z");
-    const end = new Date(endDate + "T23:59:59Z");
-  
-    // Define the primary emotions we care about
-    const primaryEmotions = ["Happy", "Sad", "Angry", "Fear", "Disgust", "Surprise"];
-  
-    // We will store counts of mindful days by emotion
-    const mindfulEmotionCount = {
-      "Happy": 0,
-      "Sad": 0,
-      "Angry": 0,
-      "Fear": 0,
-      "Disgust": 0,
-      "Surprise": 0
-    };
-  
-    // To count distinct "days" rather than individual entries, 
-    // we can keep track of which dates have already been counted per emotion.
-    const countedDatesByEmotion = {
-      "Happy": new Set(),
-      "Sad": new Set(),
-      "Angry": new Set(),
-      "Fear": new Set(),
-      "Disgust": new Set(),
-      "Surprise": new Set()
-    };
-  
-    data.forEach((row, index) => {
-      if (index === 0) return; // Skip header
-      const rowUserId = row[0];
-      const rowTimestamp = row[1];
-      const primaryEmotion = row[2];
-      const mindfulness = row[8];
-  
-      if (!rowUserId || !rowTimestamp) return;
-      const rowDate = new Date(rowTimestamp);
-      if (rowUserId == userId && rowDate >= start && rowDate <= end) {
-        if (mindfulness === 'Yes' && primaryEmotions.includes(primaryEmotion)) {
-          // Convert date to a string without time to identify the day
-          const dayString = rowDate.toDateString();
-          // Only count once per day per emotion
-          if (!countedDatesByEmotion[primaryEmotion].has(dayString)) {
-            countedDatesByEmotion[primaryEmotion].add(dayString);
-            mindfulEmotionCount[primaryEmotion]++;
+
+      const emotions = ["Happy", "Sad", "Angry", "Fear", "Disgust", "Surprise"];
+      const counts = emotions.map(emotion => data[emotion] || 0);
+
+      window.currentMindfulEmotionChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: emotions,
+          datasets: [{
+            label: 'Number of Mindful Days',
+            data: counts,
+            backgroundColor: [
+              '#FF6384', // Happy
+              '#36A2EB', // Sad
+              '#FFCE56', // Angry
+              '#4BC0C0', // Fear
+              '#9966FF', // Disgust
+              '#FF9F40'  // Surprise
+            ]
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Days'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Primary Emotions'
+              }
+            }
           }
         }
-      }
-    });
-  
-    return mindfulEmotionCount;
-  }
-  
-  function fetchAlcoholEmotionData(startDate, endDate) {
-    const sheet = SpreadsheetApp.openById('1hKgZM7_Ft_D6JYkCBa7qDD3JypTZt0BDZNYSStrmS7g');
-    const sheetData = sheet.getActiveSheet();
-    const email = Session.getActiveUser().getEmail();
-    const userId = getUserIdByEmail(email);
-  
-    if (!userId) {
-      return { error: 'User ID not found.' };
+      });
     }
-  
-    const data = sheetData.getDataRange().getValues();
-    const start = new Date(startDate + "T00:00:00Z");
-    const end = new Date(endDate + "T23:59:59Z");
-  
-    const primaryEmotions = ["Happy", "Sad", "Angry", "Fear", "Disgust", "Surprise"];
-    const emotionCounts = {};
-  
-    // Initialize the counts for each emotion to 0
-    primaryEmotions.forEach(emotion => {
-      emotionCounts[emotion] = 0;
-    });
-  
-    // Loop through the data and increment the count for each emotion
-    data.forEach((row, index) => {
-      if (index === 0) return; // Skip header
-      const rowUserId = row[0];
-      const rowTimestamp = row[1];
-      const primaryEmotion = row[2];
-      const alcohol = row[6];
-  
-      if (!rowUserId || !rowTimestamp) return;
-      const rowDate = new Date(rowTimestamp);
-  
-      if (rowUserId == userId && rowDate >= start && rowDate <= end && alcohol === 'Yes' && primaryEmotions.includes(primaryEmotion)) {
-        emotionCounts[primaryEmotion]++;
+
+    function drawEmotionTimeline(data) {
+      const ctx = document.getElementById('emotionTimelineChart').getContext('2d');
+
+      // Define emotion colors
+      const emotionColors = {
+        'Happy': '#FF6384',
+        'Sad': '#36A2EB',
+        'Angry': '#FFCE56',
+        'Fear': '#4BC0C0',
+        'Disgust': '#9966FF',
+        'Surprise': '#FF9F40'
+      };
+
+      // Map data into Chart.js-friendly format
+      const chartData = {};
+      data.forEach(entry => {
+        const date = new Date(entry.date).toISOString().split('T')[0];
+        if (!chartData[date]) {
+          chartData[date] = {};
+        }
+        if (!chartData[date][entry.primaryEmotion]) {
+          chartData[date][entry.primaryEmotion] = 0;
+        }
+        chartData[date][entry.primaryEmotion]++;
+      });
+
+      const labels = Object.keys(chartData);
+      const datasets = Object.keys(emotionColors).map(emotion => ({
+        label: emotion,
+        data: labels.map(date => chartData[date][emotion] || 0),
+        backgroundColor: emotionColors[emotion]
+      }));
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: datasets
+        },
+        options: {
+          scales: {
+            x: {
+              type: 'time',
+              time: {
+                unit: 'day',
+                displayFormats: {
+                  day: 'MM/DD'
+                }
+              },
+              title: {
+                display: true,
+                text: 'Date'
+              },
+              stacked: true
+            },
+            y: {
+              beginAtZero: true,
+              stacked: true,
+              display: false
+            }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const emotion = context.dataset.label;
+                  const count = context.raw;
+                  return `${emotion}: ${count}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function displayAlcoholConsumption(data) {
+      const alcoholDays = data.mindfulnessDays.alcohol;
+      document.getElementById('alcoholConsumption').innerText = `You have had ${alcoholDays} days with alcohol during this time period.`;
+    }
+
+    function drawAlcoholEmotionChart(data) {
+      const ctx = document.getElementById('alcoholEmotionChart').getContext('2d');
+
+      // Define the primary emotions you want to track
+      const emotions = ["Happy", "Sad", "Angry", "Fear", "Disgust", "Surprise"];
+
+      // Extract the number of alcohol-consumption days for each emotion from the data
+      const alcoholCounts = emotions.map(emotion => data[emotion] || 0);
+
+      // Destroy any previous chart instance if needed
+      if (window.currentAlcoholEmotionChart) {
+        window.currentAlcoholEmotionChart.destroy();
       }
-    });
-  
-    return emotionCounts;
-  }
-  
-  function getUserIdByEmail(email) {
-    const emailToIdMapping = {
-      "nikkiahmadi@tamu.edu": "nicu",
-      "nikkiraddd@tamu.edu": "NikkiRadd",
-      "adamsulemanji@tamu.edu": "Adam",
-      "spencerle@tamu.edu": "Spencer"
-    };
-  
-    return emailToIdMapping[email] || null;
-  }
-  
+
+      // Create a new bar chart with emotions on the x-axis and alcohol days on the y-axis
+      window.currentAlcoholEmotionChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: emotions,
+          datasets: [{
+            label: 'Alcohol Days',
+            data: alcoholCounts,
+            backgroundColor: [
+              '#FF6384', // Happy
+              '#36A2EB', // Sad
+              '#FFCE56', // Angry
+              '#4BC0C0', // Fear
+              '#9966FF', // Disgust
+              '#FF9F40'  // Surprise
+            ]
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Number of Alcohol Days'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Primary Emotions'
+              }
+            }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const emotion = context.label;
+                  const alcoholDays = context.formattedValue;
+                  return `${emotion}: ${alcoholDays} day(s) with alcohol`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function predictNextDayMood(data) {
+      // For now, always predict "Happy"
+      const predictedMood = "Happy";
+      document.getElementById('predictedMood').innerText = predictedMood;
+    }
+
+    function getColorForEmotion(emotion) {
+      switch (emotion) {
+        case 'Happy': return '#FF6384';
+        case 'Sad': return '#36A2EB';
+        case 'Angry': return '#FFCE56';
+        case 'Fear': return '#4BC0C0';
+        case 'Disgust': return '#9966FF';
+        case 'Surprise': return '#FF9F40';
+        default: return '#CCCCCC';
+      }
+    }
+
+  </script>
+</body>
+</html>
